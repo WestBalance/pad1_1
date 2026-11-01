@@ -25,7 +25,6 @@ export async function indexDocuments(config) {
     state = { documents: {} };
     await saveJson(stateFile, state);
   }
-  // Проверяем и уже проиндексированные документы: конфигурация должна быть валидной.
   makeChunks(documents[0], config);
   const currentIds = new Set(documents.map(d => d.id));
   for (const id of Object.keys(state.documents)) if (!currentIds.has(id)) {
@@ -36,7 +35,7 @@ export async function indexDocuments(config) {
   for (const document of documents) {
     if (state.documents[document.id] === document.contentHash) continue;
     const chunks = makeChunks(document, config);
-    // Сначала получаем все embeddings: ошибка модели не удалит старые chunks.
+    // До получения embeddings старый индекс не трогаем.
     const points = [];
     for (let start = 0; start < chunks.length; start += config.indexBatchSize) {
       const batch = chunks.slice(start, start + config.indexBatchSize);

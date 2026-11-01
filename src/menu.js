@@ -63,7 +63,7 @@ export function parseSetting(text, current) {
 }
 
 export async function saveConfig(config, filename = fileURLToPath(new URL('./config.js', import.meta.url))) {
-  await writeFile(`${filename}.tmp`, `// Все настройки редактируются здесь или через npm start.\nexport default ${JSON.stringify(config, null, 2)};\n`, 'utf8');
+  await writeFile(`${filename}.tmp`, `export default ${JSON.stringify(config, null, 2)};\n`, 'utf8');
   await rename(`${filename}.tmp`, filename);
 }
 

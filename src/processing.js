@@ -11,7 +11,7 @@ export function normalizeUrl(value, base) {
     const url = new URL(value, base);
     if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return null;
     url.hash = '';
-    url.search = ''; // Не обходим варианты одной страницы с query-параметрами.
+    url.search = '';
     return url.href;
   } catch { return null; }
 }
