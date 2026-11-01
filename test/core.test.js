@@ -5,7 +5,7 @@ import { inScope } from '../src/grabber.js';
 import { retrievalMetrics } from '../src/evaluation.js';
 import { generate } from '../src/generation.js';
 import config from '../src/config.js';
-import { chooseQuestionIds } from '../src/menu.js';
+import { chooseQuestionIds, runMenu } from '../src/menu.js';
 import { readFile } from 'node:fs/promises';
 
 test('chunking covers full text, preserves overlap and stable IDs', () => {
@@ -37,4 +37,41 @@ test('menu selects ten answerable and two unanswerable questions without duplica
   assert.equal(questions.filter(q => ids.includes(q.id) && q.expectedUrls.length > 0).length, 10);
   assert.equal(questions.filter(q => ids.includes(q.id) && q.expectedUrls.length === 0).length, 2);
   assert.throws(() => chooseQuestionIds(questions, { answerableCount: 26, unanswerableCount: 2 }), /Недостаточно вопросов/);
+});
+
+test('menu combines presets, passes them to all actions and leaves config unchanged', async t => {
+  t.mock.method(console, 'log', () => {});
+  const errors = [];
+  t.mock.method(console, 'error', message => errors.push(message));
+  const original = structuredClone(config);
+  const configFile = new URL('../src/config.js', import.meta.url);
+  const before = await readFile(configFile, 'utf8');
+  const answers = ['1', '2', '2', '3', '3', '2', '1', '6', '9', 'test question', '10', 'да', '11', '8', '0'];
+  const calls = [];
+  const input = {
+    async question() { assert.ok(answers.length, 'Unexpected extra prompt'); return answers.shift(); },
+    close() {}
+  };
+  await runMenu(config, {
+    async index(settings) {
+      calls.push({ action: 'index', settings: structuredClone(settings) });
+      if (calls.length === 1) assert.deepEqual(makeChunks({ id: 'test', text: 'x'.repeat(2500) }, settings).map(chunk => chunk.start), [0, 900, 1800]);
+    },
+    async ask(question, settings) { calls.push({ action: 'ask', question, settings: structuredClone(settings) }); },
+    async evaluate(settings) { calls.push({ action: 'evaluate', settings: structuredClone(settings) }); }
+  }, input);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(calls.map(call => call.action), ['index', 'ask', 'evaluate', 'index']);
+  for (const call of calls.slice(0, 3)) {
+    assert.equal(call.settings.chunkStrategy, 'overlap');
+    assert.equal(call.settings.chunkSize, 1200);
+    assert.equal(call.settings.chunkOverlap, 300);
+    assert.equal(call.settings.topK, 8);
+    assert.equal(call.settings.rerankerEnabled, false);
+  }
+  assert.equal(calls[2].settings.evaluation.questionIds.length, 12);
+  assert.deepEqual(calls[2].settings.evaluation.variants, [{ name: 'menu' }]);
+  assert.deepEqual(calls[3].settings, original);
+  assert.deepEqual(config, original);
+  assert.equal(await readFile(configFile, 'utf8'), before);
 });

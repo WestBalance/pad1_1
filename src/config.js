@@ -33,6 +33,14 @@ export default {
     precise: { temperature: 0, seed: 65, num_predict: 600, num_ctx: 8192 },
     creative: { temperature: 0.6, seed: 65, num_predict: 600, num_ctx: 8192 }
   },
+  menuGroups: [
+    { title: 'Chunking', fields: ['chunkStrategy', 'chunkSize', 'chunkOverlap'], variants: ['baseline', 'fixed-800', 'fixed-1200', 'overlap-800-100', 'overlap-1200-200', 'overlap-1200-300'] },
+    { title: 'Top-K', fields: ['topK'], variants: ['baseline', 'top3', 'top8'] },
+    { title: 'Reranker', fields: ['rerankerEnabled'], variants: ['with-reranker', 'no-reranker'] },
+    { title: 'Порог сходства', fields: ['similarityThreshold'], variants: ['baseline', 'threshold-025', 'threshold-050'] },
+    { title: 'Prompt', fields: ['promptVariant'], variants: ['baseline', 'prompt-concise'] },
+    { title: 'Генерация', fields: ['generationMode'], variants: ['baseline', 'creative'] }
+  ],
   evaluation: {
     generateAnswers: true,
     randomQuestions: { enabled: true, answerableCount: 10, unanswerableCount: 2 },
@@ -42,11 +50,13 @@ export default {
       { name: 'baseline' },
       { name: 'fixed-800', chunkStrategy: 'fixed', chunkSize: 800, chunkOverlap: 0 },
       { name: 'fixed-1200', chunkStrategy: 'fixed', chunkSize: 1200, chunkOverlap: 0 },
-      { name: 'overlap-800-100', chunkSize: 800, chunkOverlap: 100 },
-      { name: 'overlap-1200-300', chunkOverlap: 300 },
+      { name: 'overlap-800-100', chunkStrategy: 'overlap', chunkSize: 800, chunkOverlap: 100 },
+      { name: 'overlap-1200-200', chunkStrategy: 'overlap', chunkSize: 1200, chunkOverlap: 200 },
+      { name: 'overlap-1200-300', chunkStrategy: 'overlap', chunkSize: 1200, chunkOverlap: 300 },
       { name: 'top3', topK: 3 },
       { name: 'top8', topK: 8 },
       { name: 'no-reranker', rerankerEnabled: false },
+      { name: 'with-reranker', rerankerEnabled: true },
       { name: 'threshold-025', similarityThreshold: 0.25 },
       { name: 'threshold-050', similarityThreshold: 0.5 },
       { name: 'prompt-concise', promptVariant: 'concise' },
