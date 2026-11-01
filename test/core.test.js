@@ -5,6 +5,8 @@ import { inScope } from '../src/grabber.js';
 import { retrievalMetrics } from '../src/evaluation.js';
 import { generate } from '../src/generation.js';
 import config from '../src/config.js';
+import { chooseQuestionIds } from '../src/menu.js';
+import { readFile } from 'node:fs/promises';
 
 test('chunking covers full text, preserves overlap and stable IDs', () => {
   const document = { id: 'a', text: '0123456789abcdef' };
@@ -25,4 +27,14 @@ test('generic HTML extraction and crawler boundaries', () => {
 test('metrics use first relevant rank and empty context never calls LLM', async () => {
   assert.deepEqual(retrievalMetrics([{ payload: { url: 'x' } }, { payload: { url: 'y' } }], ['y']), { hit: 1, reciprocalRank: 0.5 });
   assert.equal((await generate('question', [], config)).answered, false);
+});
+
+test('menu selects ten answerable and two unanswerable questions without duplicates', async () => {
+  const questions = JSON.parse(await readFile(new URL('../experiments/questions.json', import.meta.url), 'utf8'));
+  const ids = chooseQuestionIds(questions, config.evaluation.randomQuestions);
+  assert.equal(ids.length, 12);
+  assert.equal(new Set(ids).size, 12);
+  assert.equal(questions.filter(q => ids.includes(q.id) && q.expectedUrls.length > 0).length, 10);
+  assert.equal(questions.filter(q => ids.includes(q.id) && q.expectedUrls.length === 0).length, 2);
+  assert.throws(() => chooseQuestionIds(questions, { answerableCount: 26, unanswerableCount: 2 }), /Недостаточно вопросов/);
 });

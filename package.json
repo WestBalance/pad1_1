@@ -5,6 +5,7 @@
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
+    "start": "node src/index.js menu",
     "grab": "node src/index.js grab",
     "index": "node src/index.js index",
     "ask": "node src/index.js ask",

@@ -1,4 +1,3 @@
-// Все изменяемые настройки и варианты экспериментов находятся только здесь.
 export default {
   sourceUrl: 'https://docs.python.org/3/tutorial/',
   maxDepth: 1, // Число переходов от sourceUrl.
@@ -36,8 +35,9 @@ export default {
   },
   evaluation: {
     generateAnswers: true, // false: только retrieval, без генерации ответов.
-    questionIds: [4, 7, 11, 16, 25, 26], // [] — все 30 вопросов.
-    variantNames: ['baseline'], // [] — все варианты ниже.
+    randomQuestions: { enabled: true, answerableCount: 10, unanswerableCount: 2 }, // Случайная выборка при запуске из меню.
+    questionIds: [4, 7, 11, 16, 25, 26], 
+    variantNames: ['baseline'], 
     // Отдельные отклонения от базовой конфигурации, без полного перебора комбинаций.
     variants: [
       { name: 'baseline' },
@@ -52,9 +52,6 @@ export default {
       { name: 'threshold-050', similarityThreshold: 0.5 },
       { name: 'prompt-concise', promptVariant: 'concise' },
       { name: 'creative', generationMode: 'creative' }
-      // Для сравнения второй embedding-модели добавьте вариант
-      // { name: 'other-embedding', embeddingModel: 'mxbai-embed-large' }
-      // и самостоятельно скачайте эту модель через ollama pull.
     ]
   }
 };
