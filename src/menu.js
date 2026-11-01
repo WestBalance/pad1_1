@@ -37,6 +37,7 @@ function describe(settings, group) {
     if (typeof value === 'boolean') value = value ? 'включён' : 'выключен';
     if (field === 'chunkStrategy') value = value === 'fixed' ? 'без перекрытия' : 'с перекрытием';
     if (field === 'chunkOverlap' && settings.chunkStrategy === 'fixed') value = 0;
+    if (field === 'promptVariant') value = value === 'concise' ? 'короткий' : value === 'strict' ? 'полный' : value;
     return `${labels[field] || field}: ${value}`;
   }).join(', ');
 }

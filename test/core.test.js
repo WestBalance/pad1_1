@@ -5,7 +5,7 @@ import { inScope } from '../src/grabber.js';
 import { retrievalMetrics } from '../src/evaluation.js';
 import { generate } from '../src/generation.js';
 import config from '../src/config.js';
-import { chooseQuestionIds, runMenu } from '../src/menu.js';
+import { chooseQuestionIds, runMenu, applyPreset } from '../src/menu.js';
 import { readFile } from 'node:fs/promises';
 
 test('chunking covers full text, preserves overlap and stable IDs', () => {
@@ -25,7 +25,10 @@ test('generic HTML extraction and crawler boundaries', () => {
   assert.equal(normalizeUrl('javascript:alert(1)', config.sourceUrl), null);
 });
 test('metrics use first relevant rank and empty context never calls LLM', async () => {
-  assert.deepEqual(retrievalMetrics([{ payload: { url: 'x' } }, { payload: { url: 'y' } }], ['y']), { hit: 1, reciprocalRank: 0.5 });
+  assert.deepEqual(retrievalMetrics([{ payload: { url: 'x' } }, { payload: { url: 'y' } }], ['y']), { precisionAtK: 0.5, recallAtK: 1, hit: 1, reciprocalRank: 0.5 });
+  assert.deepEqual(retrievalMetrics([{ payload: { url: 'y' } }, { payload: { url: 'y' } }], ['y', 'z'], 5), { precisionAtK: 0.4, recallAtK: 0.5, hit: 1, reciprocalRank: 1 });
+  assert.deepEqual(retrievalMetrics([], ['y'], 5), { precisionAtK: 0, recallAtK: 0, hit: 0, reciprocalRank: 0 });
+  assert.equal(retrievalMetrics([], [], 5), null);
   assert.equal((await generate('question', [], config)).answered, false);
 });
 
@@ -46,7 +49,7 @@ test('menu combines presets, passes them to all actions and leaves config unchan
   const original = structuredClone(config);
   const configFile = new URL('../src/config.js', import.meta.url);
   const before = await readFile(configFile, 'utf8');
-  const answers = ['1', '2', '2', '3', '3', '2', '1', '6', '9', 'test question', '10', 'да', '11', '8', '0'];
+  const answers = ['1', '2', '2', '3', '3', '2', '1', '6', '5', '2', '9', 'test question', '10', 'да', '11', '8', '0'];
   const calls = [];
   const input = {
     async question() { assert.ok(answers.length, 'Unexpected extra prompt'); return answers.shift(); },
@@ -68,10 +71,29 @@ test('menu combines presets, passes them to all actions and leaves config unchan
     assert.equal(call.settings.chunkOverlap, 300);
     assert.equal(call.settings.topK, 8);
     assert.equal(call.settings.rerankerEnabled, false);
+    assert.equal(call.settings.promptVariant, 'concise');
   }
   assert.equal(calls[2].settings.evaluation.questionIds.length, 12);
   assert.deepEqual(calls[2].settings.evaluation.variants, [{ name: 'menu' }]);
   assert.deepEqual(calls[3].settings, original);
   assert.deepEqual(config, original);
   assert.equal(await readFile(configFile, 'utf8'), before);
+});
+
+test('Qwen request uses the selected full or short prompt', async t => {
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ message: { content: JSON.stringify({ answered: true, answer: 'Example', sourceIds: [1] }) } }));
+  });
+  const group = config.menuGroups.find(item => item.fields.includes('promptVariant'));
+  const hits = [{ payload: { title: 'Example', text: 'Example context', url: 'https://example.com/' } }];
+  const short = applyPreset(config, config, group, 'prompt-concise');
+  const full = applyPreset(short, config, group, 'prompt-strict');
+  await generate('Example?', hits, short);
+  await generate('Example?', hits, full);
+  assert.equal(requests[0].messages[0].content, config.prompts.concise);
+  assert.equal(requests[1].messages[0].content, config.prompts.strict);
+  assert.ok(requests[0].messages[0].content.length < requests[1].messages[0].content.length);
+  assert.equal(requests[0].model, config.generationModel);
 });
